@@ -4,6 +4,7 @@
 
 # data folder
 data/
+data/data_control/
 
 # various output
 figures/
