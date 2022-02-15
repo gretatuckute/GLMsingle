@@ -1,10 +1,12 @@
 #
 .vscode/
 
+.DS_Store
+data/.DS_Store
+.idea
 
 # data folder
 data/
-examples/data_control/
 
 # various output
 figures/
