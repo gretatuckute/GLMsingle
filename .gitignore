@@ -8,6 +8,7 @@ data/.DS_Store
 # data folder
 data/
 input_neural_data/*
+design_matrices/*
 
 # various output
 figures/
