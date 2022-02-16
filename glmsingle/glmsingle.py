@@ -463,9 +463,10 @@ class GLM_single():
             outputdir = os.path.join(cwd, 'GLMestimatesingletrialoutputs')
 
         if os.path.exists(outputdir):
-            import shutil
-            shutil.rmtree(outputdir)
-            os.makedirs(outputdir)
+            # import shutil # GT edit 20220216
+            # shutil.rmtree(outputdir)
+            # os.makedirs(outputdir)
+            print(f'Output directory {outputdir} already exists. File outputs will be overwritten.')
         else:
             os.makedirs(outputdir)
 
@@ -1370,6 +1371,9 @@ class GLM_single():
                 h = h5py.File(file0, 'w')
                 for k, v in outdict.items():
                     print(f'Saving {k}')
+                    if v is None:  # If None because of missing value due to cross-validation, GT edit 20220216
+                        print(f'Value for {k} is None, setting to []')
+                        v = []
                     h.create_dataset(k, data=v)
                 h.close()
                 # np.save(file0, outdict)
