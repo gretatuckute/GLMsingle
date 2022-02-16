@@ -25,7 +25,7 @@ def check_inputs(data, design):
     numcond = design[0].shape[1]
     for p in range(len(design)):
         np.testing.assert_array_equal(
-            np.unique(design[p]),
+            np.unique(design[p]), # GT Fix 20220215
             [0, 1],
             err_msg='<design> must consist of 0s and 1s')
         condmsg = \
