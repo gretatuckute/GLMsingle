@@ -1,2 +1,0 @@
-/var/slurm/slurmd/job23243156/slurm_script: line 13:  1666 Killed                  python evaluate_GLMsingle_on_pilot3.py
-slurmstepd: error: Detected 1 oom-kill event(s) in StepId=23243156.batch. Some of your processes may have been killed by the cgroup out-of-memory handler.
