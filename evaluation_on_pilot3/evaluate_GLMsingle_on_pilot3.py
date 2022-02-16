@@ -53,12 +53,7 @@ def main(raw_args=None):
                         help='Whether to print output and not create a log file')
     parser.add_argument('--overwrite', default=True, type=bool,
                         help='Whether to overwrite results in case outputdir already exists')
-
     args = parser.parse_args(raw_args)
-    
-    print('*' * 40)
-    print(vars(args))
-    print('*' * 40)
 
     # ### Set paths and download the example dataset
     user = getpass.getuser()
@@ -67,7 +62,9 @@ def main(raw_args=None):
         root = '/om5/group/evlab/u/gretatu/GLMsingle/'
     else:
         root = '/Users/gt/om5/GLMsingle/'
-
+    
+    # homedir = '/Users/gt/Documents/GitHub/GLMsingle/'
+    # os.chdir(join(homedir))
     os.chdir(join(root))
 
     import glmsingle
@@ -92,7 +89,11 @@ def main(raw_args=None):
     if user != 'gt' and not args.verbose:
         date = datetime.datetime.now().strftime("%Y%m%d-%T")
         sys.stdout = open(join(logdir, f'out_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
-        
+
+    print('*' * 40)
+    print(vars(args))
+    print('*' * 40)
+    
     print(f'Preprocessing pipeline: {preproc} with {pcstop} PCs and {fracs} fracridge')
     print(f'\nInput data dir: {datadir}')
     print(f'\nSave output dir: {outputdir}')
@@ -196,12 +197,7 @@ def main(raw_args=None):
 
     sys.stdout.flush()
 
-    # this example saves output files to the folder  "example1outputs/GLMsingle"
-    # if these outputs don't already exist, we will perform the time-consuming call to GLMsingle;
-    # otherwise, we will just load from disk.
-
     start_time = time.time()
-
     if args.overwrite or not exists(outputdir):
         print(f'running GLMsingle... Outputdir exists: {exists(outputdir)} and is being overwritten: {args.overwrite}')
     
@@ -212,25 +208,18 @@ def main(raw_args=None):
             args.stimdur,
             args.tr,
             outputdir=outputdir)
-    
-        # we assign outputs of GLMsingle to the "results_glmsingle" variable.
-        # note that results_glmsingle['typea'] contains GLM estimates from an ONOFF model,
-        # where all images are treated as the same condition. these estimates
-        # could be potentially used to find cortical areas that respond to
-        # visual stimuli. we want to compare beta weights between conditions
-        # therefore we are not going to include the ONOFF betas in any analyses of
-        # voxel reliability
 
     else:
-        print(f'loading existing GLMsingle outputs from directory:\n\t{outputdir}')
+        print(f'GLMsingle outputs already exists in directory:\n\t{outputdir}')
     
         # load existing file outputs if they exist
-        results_glmsingle = dict()
-        results_glmsingle['typea'] = np.load(join(outputdir, 'TYPEA_ONOFF.npy'), allow_pickle=True).item()
-        results_glmsingle['typeb'] = np.load(join(outputdir, 'TYPEB_FITHRF.npy'), allow_pickle=True).item()
-        results_glmsingle['typec'] = np.load(join(outputdir, 'TYPEC_FITHRF_GLMDENOISE.npy'), allow_pickle=True).item()
-        results_glmsingle['typed'] = np.load(join(outputdir, 'TYPED_FITHRF_GLMDENOISE_RR.npy'),
-                                             allow_pickle=True).item()
+        # Reading data
+        # hf1 = h5py.File('test_data.h5', 'r')
+        # for name in hf1:
+        #     print(name)
+        #
+        # print(hf1.attrs.keys())
+        # hf1.close()
 
     sys.stdout.flush()
     elapsed_time = time.time() - start_time

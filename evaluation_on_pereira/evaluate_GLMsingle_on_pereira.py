@@ -47,17 +47,12 @@ def main(raw_args=None):
                         help='Fraction of ridge regularization to use')
     parser.add_argument('--test', default=False, type=bool,
                         help='Whether to run test mode and only use one run for testing')
-    parser.add_argument('--verbose', default=True, type=bool,
+    parser.add_argument('--verbose', default=False, type=bool,
                         help='Whether to print output and not create a log file')
     parser.add_argument('--overwrite', default=True, type=bool,
                         help='Whether to overwrite results in case outputdir already exists')
-
     args = parser.parse_args(raw_args)
     
-    print('*' * 40)
-    print(vars(args))
-    print('*' * 40)
-
     # ### Set paths and download the example dataset
     user = getpass.getuser()
     print(f'Running as user {user}')
@@ -65,7 +60,6 @@ def main(raw_args=None):
         root = '/om5/group/evlab/u/gretatu/GLMsingle/'
     else:
         root = '/Users/gt/om5/GLMsingle/'
-
     os.chdir(join(root))
 
     import glmsingle
@@ -90,7 +84,11 @@ def main(raw_args=None):
     if user != 'gt' and not args.verbose:
         date = datetime.datetime.now().strftime("%Y%m%d-%T")
         sys.stdout = open(join(logdir, f'out_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
-        
+    
+    print('*' * 40)
+    print(vars(args))
+    print('*' * 40)
+
     print(f'Preprocessing pipeline: {preproc} with {pcstop} PCs and {fracs} fracridge')
     print(f'\nSave output dir: {outputdir}')
     print(f'\nDesign matrices dir: {designdir}')
@@ -133,14 +131,12 @@ def main(raw_args=None):
     xyz = data[0].shape[:3]
     xyzt = data[0].shape
     
-    # check whether all arrays in design have same number of rows
-    assert (np.all([x.shape[0] == design.shape[0] for x in design]))
-    
     print(f'Number of runs in data: {len(data)}.\nShape of Images (brain XYZ and TR): {data[0].shape}')
     if args.test:
         design = [design[0]]
     
-    print(f'Number of runs in design matrix: {len(design)}, each with shape: {design[0].shape} [TR; cond]\n'
+    print(f'Number of runs in design matrix: {len(design)}, with unique number of TRs across runs: {np.unique([x.shape[0] for x in design])}\n'
+          f'and unique number of conditions: {np.unique([x.shape[1] for x in design])}\n'
           f'TR: {args.tr} and stimulus duration (in seconds): {args.stimdur}')
 
     assert (len(data) == len(design))
@@ -196,7 +192,7 @@ def main(raw_args=None):
     # add changing parameters
     opt['pcstop'] = pcstop
     opt['fracs'] = fracs
-
+s
     # running python GLMsingle involves creating a GLM_single object
     # and then running the procedure using the .fit() routine
     glmsingle_obj = GLM_single(opt)
@@ -205,13 +201,8 @@ def main(raw_args=None):
     pprint(glmsingle_obj.params)
 
     sys.stdout.flush()
-
-    # this example saves output files to the folder  "example1outputs/GLMsingle"
-    # if these outputs don't already exist, we will perform the time-consuming call to GLMsingle;
-    # otherwise, we will just load from disk.
-
+    
     start_time = time.time()
-
     if args.overwrite or not exists(outputdir):
         print(f'running GLMsingle... Outputdir exists: {exists(outputdir)} and is being overwritten: {args.overwrite}')
     
@@ -222,25 +213,9 @@ def main(raw_args=None):
             args.stimdur,
             args.tr,
             outputdir=outputdir)
-    
-        # we assign outputs of GLMsingle to the "results_glmsingle" variable.
-        # note that results_glmsingle['typea'] contains GLM estimates from an ONOFF model,
-        # where all images are treated as the same condition. these estimates
-        # could be potentially used to find cortical areas that respond to
-        # visual stimuli. we want to compare beta weights between conditions
-        # therefore we are not going to include the ONOFF betas in any analyses of
-        # voxel reliability
 
     else:
-        print(f'loading existing GLMsingle outputs from directory:\n\t{outputdir}')
-    
-        # load existing file outputs if they exist
-        results_glmsingle = dict()
-        results_glmsingle['typea'] = np.load(join(outputdir, 'TYPEA_ONOFF.npy'), allow_pickle=True).item()
-        results_glmsingle['typeb'] = np.load(join(outputdir, 'TYPEB_FITHRF.npy'), allow_pickle=True).item()
-        results_glmsingle['typec'] = np.load(join(outputdir, 'TYPEC_FITHRF_GLMDENOISE.npy'), allow_pickle=True).item()
-        results_glmsingle['typed'] = np.load(join(outputdir, 'TYPED_FITHRF_GLMDENOISE_RR.npy'),
-                                             allow_pickle=True).item()
+        print(f'GLMsingle outputs already exists in directory:\n\t{outputdir}')
 
     sys.stdout.flush()
     elapsed_time = time.time() - start_time
