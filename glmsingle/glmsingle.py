@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import numpy as np
 from tqdm import tqdm
+import h5py # GT added 20220216
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import normalize
 from glmsingle.check_inputs import check_inputs
@@ -23,6 +24,7 @@ from glmsingle.utils.alt_round import alt_round
 __all__ = ["GLM_single"]
 dir0 = os.path.dirname(os.path.realpath(__file__))
 
+print(f'\n\n ---------- Running version from {os.getcwd()} ---------- \n\n')
 
 class GLM_single():
 
@@ -594,16 +596,22 @@ class GLM_single():
         meanvol = results0['meanvol']
         betasmd = results0['betasmd']
 
-        # save to disk if desired
         if params['wantfileoutputs'][whmodel] == 1:
-            file0 = os.path.join(outputdir, 'TYPEA_ONOFF.npy')
+            # file0 = os.path.join(outputdir, 'TYPEA_ONOFF.npy')
+            file0 = os.path.join(outputdir, 'TYPEA_ONOFF.hdf5')
             print(f'\n*** Saving results to {file0}. ***\n')
             results_out = {
                 'onoffR2': onoffR2,
                 'meanvol': meanvol,
                 'betasmd': betasmd
             }
-            np.save(file0, results_out)
+            print(f'\nSaving as HDF5 - GT edit 20220216')
+            h = h5py.File(file0, 'w')
+            for k, v in results_out.items():
+                print(f'Saving {k}')
+                h.create_dataset(k, data=v)
+            h.close()
+            # np.save(file0, results_out)
 
         # figures
         if wantfig:
@@ -862,12 +870,19 @@ class GLM_single():
 
             # save to disk if desired
             if params['wantfileoutputs'][whmodel] == 1:
-                file0 = os.path.join(outputdir, 'TYPEB_FITHRF.npy')
+                file0 = os.path.join(outputdir, 'TYPEB_FITHRF.hdf5')
+                # file0 = os.path.join(outputdir, 'TYPEB_FITHRF.npy')
                 print(f'\n*** Saving results to {file0}. ***\n')
-                np.save(
-                    file0,
-                    results_out
-                )
+                print(f'\nSaving as HDF5 - GT edit 20220216')
+                h = h5py.File(file0, 'w')
+                for k, v in results_out.items():
+                    print(f'Saving {k}')
+                    h.create_dataset(k, data=v)
+                h.close()
+                # np.save(
+                #     file0,
+                #     results_out
+                # )
 
             # figures?
             if wantfig:
@@ -1308,8 +1323,10 @@ class GLM_single():
 
             # save to disk if desired
             if whmodel == 2:
+                # file0 = os.path.join(
+                #     outputdir, 'TYPEC_FITHRF_GLMDENOISE.npy')
                 file0 = os.path.join(
-                    outputdir, 'TYPEC_FITHRF_GLMDENOISE.npy')
+                    outputdir, 'TYPEC_FITHRF_GLMDENOISE.hdf5')
                 outdict = {
                     'HRFindex': HRFindex,
                     'HRFindexrun': HRFindexrun,
@@ -1325,8 +1342,10 @@ class GLM_single():
                     'meanvol':  meanvol
                     }
             elif whmodel == 3:
+                # file0 = os.path.join(
+                #     outputdir, 'TYPED_FITHRF_GLMDENOISE_RR.npy')
                 file0 = os.path.join(
-                    outputdir, 'TYPED_FITHRF_GLMDENOISE_RR.npy')
+                    outputdir, 'TYPED_FITHRF_GLMDENOISE_RR.hdf5')
                 outdict = {
                     'HRFindex': HRFindex,
                     'HRFindexrun': HRFindexrun,
@@ -1347,7 +1366,13 @@ class GLM_single():
 
             if params['wantfileoutputs'][whmodel] == 1:
                 print(f'\n*** Saving results to {file0}. ***\n')
-                np.save(file0, outdict)
+                print(f'\nSaving as HDF5 - GT edit 20220216')
+                h = h5py.File(file0, 'w')
+                for k, v in outdict.items():
+                    print(f'Saving {k}')
+                    h.create_dataset(k, data=v)
+                h.close()
+                # np.save(file0, outdict)
 
             # figures?
             if wantfig:
