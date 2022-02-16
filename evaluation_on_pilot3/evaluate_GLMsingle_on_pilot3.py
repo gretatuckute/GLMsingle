@@ -36,13 +36,18 @@ warnings.filterwarnings('ignore')
 def main(raw_args=None):
     # Mapping specific
     parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--UID', default='853', type=str, help='UID str')
+    parser.add_argument('--FL', default='control_tr1', type=str, help='TR str')
+    parser.add_argument('--datetag', default='20220109', type=str, help='Datetag str')
+    parser.add_argument('--stimdur', default=2, type=int, help='Stimulus duration in seconds')
+    parser.add_argument('--tr', default=2, type=int, help='TR sampling rate')
     parser.add_argument('--preproc', default='swr', type=str,
                         help='Which preprocessing pipeline to use. Default is swr.')
     parser.add_argument('--pcstop', default=1, type=int,
                         help='How many PCs to remove')
     parser.add_argument('--fracs', default=0.4, type=float,
                         help='Fraction of ridge regularization to use')
-    parser.add_argument('--test', default=False, type=bool,
+    parser.add_argument('--test', default=True, type=bool,
                         help='Whether to run test mode and only use one run for testing')
     parser.add_argument('--verbose', default=False, type=bool,
                         help='Whether to print output and not create a log file')
@@ -67,7 +72,6 @@ def main(raw_args=None):
 
     import glmsingle
     from glmsingle.glmsingle import GLM_single
-
     plot = False
 
     # arguments to change in GLM
@@ -77,21 +81,17 @@ def main(raw_args=None):
     # data args
     preproc = args.preproc
     
-    # get metadata about stimulus duration and TR
-    stimdur = 2
-    tr = 2
-    
     # create directory for saving data
     datadir = join(root, 'input_neural_data')
 
     # create directory for saving outputs from example 1
-    outputdir = join(root, 'output_glmsingle', f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}')
+    outputdir = join(root, 'output_glmsingle', f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}')
     designdir = join(root, 'design_matrices')   # set design matrix directory
     logdir = join(root, 'logs')
 
     if user != 'gt' and not args.verbose:
         date = datetime.datetime.now().strftime("%Y%m%d-%T")
-        sys.stdout = open(join(logdir, f'out_{preproc}_pcstop{pcstop}_fracs-{fracs}_{date}.log'), 'a+')
+        sys.stdout = open(join(logdir, f'out_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
         
     print(f'Preprocessing pipeline: {preproc} with {pcstop} PCs and {fracs} fracridge')
     print(f'\nInput data dir: {datadir}')
@@ -100,24 +100,23 @@ def main(raw_args=None):
     print(f'\nLog dir: {logdir}\n')
 
     ### Organize BOLD data, design matrices, metadata
-    UID = '853'
     SESSIONS = ['FED_20211008a_3T1_PL2017', 'FED_20211013b_3T1_PL2017']
     if args.test:
         print(f'Running in test mode. Only using one session: {SESSIONS[:1]}')
         SESSIONS = SESSIONS[:1]
     n_trs = 168
-    design_matrix_name = 'design_matrices_UID-853_SESSION-FED_20211008a_3T1_PL2017-FED_20211013b_3T1_PL2017_FL-control_tr1_20220109_singletrial.pkl'
+    design_matrix_name = f'design_matrices_UID-{args.UID}_SESSION-FED_20211008a_3T1_PL2017-FED_20211013b_3T1_PL2017_FL-{args.FL}_{args.datetag}_singletrial.pkl'
 
     data = []
     for s in (SESSIONS):
         print(f'Loading data from session {s}')
-        for i, f in enumerate(sorted(os.listdir(join(datadir, UID, s)))):
+        for i, f in enumerate(sorted(os.listdir(join(datadir, args.UID, s)))):
             if args.test:
                 if i > 0:
                     break
             if f.startswith(preproc):
                 print(f'Loaded file: {f}')
-                file = np.array(nib.load(join(datadir, UID, s, f)).dataobj)
+                file = np.array(nib.load(join(datadir, args.UID, s, f)).dataobj)
                 assert (file.shape[3] == n_trs)
                 data.append(file)
 
@@ -130,8 +129,10 @@ def main(raw_args=None):
     if args.test:
         design = [design[0]]
     
-    print(f'Number of runs in design matrix: {len(design)}, each with shape: {design[0].shape} [TR; cond]')
-
+    print(f'Number of runs in design matrix: {len(design)}, with unique number of TRs across runs: {np.unique([x.shape[0] for x in design])}\n'
+          f'and unique number of conditions: {np.unique([x.shape[1] for x in design])}\n'
+          f'TR: {args.tr} and stimulus duration (in seconds): {args.stimdur}')
+    
     assert (len(data) == len(design))
     assert (xyzt[-1] == design[0].shape[0])
     sys.stdout.flush()
@@ -159,7 +160,7 @@ def main(raw_args=None):
     print(f'There are {len(data)} runs in total\n')
     print(f'N = {data[0].shape[3]} TRs per run\n')
     print(f'The dimensions of the data for each run are: {data[0].shape}\n')
-    print(f'The stimulus duration is {stimdur} seconds (TR={tr})\n')
+    print(f'The stimulus duration is {args.stimdur} seconds (TR={args.tr})\n')
     print(f'XYZ dimensionality is: {data[0].shape[:3]}\n')
     print(f'Numeric precision of data is: {type(data[0][0, 0, 0, 0])}\n')
     # print(f'There are {np.sum(roi)} voxels in the included visual ROI')
@@ -180,7 +181,7 @@ def main(raw_args=None):
     opt['wantmemoryoutputs'] = [1, 1, 1, 1]
 
     # add sessionindicator
-    # opt['sessionindicator'] = np.repeat([1, 2], 10)
+    opt['sessionindicator'] = np.repeat([1, 2], 10)
 
     # add changing parameters
     opt['pcstop'] = pcstop
@@ -208,8 +209,8 @@ def main(raw_args=None):
         results_glmsingle = glmsingle_obj.fit(
             design,
             data,
-            stimdur,
-            tr,
+            args.stimdur,
+            args.tr,
             outputdir=outputdir)
     
         # we assign outputs of GLMsingle to the "results_glmsingle" variable.
