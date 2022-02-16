@@ -10,6 +10,8 @@ data/
 input_neural_data/*
 design_matrices/*
 Prep/create_design_matrices/pereira/*.csv
+Prep/create_design_matrices/pereira/*.pickle
+
 
 # various output
 figures/
