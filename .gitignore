@@ -9,6 +9,7 @@ data/.DS_Store
 data/
 input_neural_data/*
 design_matrices/*
+Prep/create_design_matrices/pereira/*.csv
 
 # various output
 figures/
