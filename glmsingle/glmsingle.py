@@ -610,6 +610,7 @@ class GLM_single():
             h = h5py.File(file0, 'w')
             for k, v in results_out.items():
                 print(f'Saving {k}')
+                print(f'Type of {k} is {type(v)} and len is {len(v)}')
                 h.create_dataset(k, data=v)
             h.close()
             # np.save(file0, results_out)
@@ -878,6 +879,7 @@ class GLM_single():
                 h = h5py.File(file0, 'w')
                 for k, v in results_out.items():
                     print(f'Saving {k}')
+                    print(f'Type of {k} is {type(v)} and len is {len(v)}')
                     h.create_dataset(k, data=v)
                 h.close()
                 # np.save(
@@ -1371,10 +1373,15 @@ class GLM_single():
                 h = h5py.File(file0, 'w')
                 for k, v in outdict.items():
                     print(f'Saving {k}')
-                    if v is None:  # If None because of missing value due to cross-validation, GT edit 20220216
-                        print(f'Value for {k} is None, setting to []')
-                        v = []
-                    h.create_dataset(k, data=v)
+                    try:
+                        print(f'Type of {k} is {type(v)} and len is {len(v)}')
+                    except:
+                        print(f'Type of {k} is {type(v)}')
+                    try:
+                        h.create_dataset(k, data=v)
+                    except:
+                        print(f'Failed to save {k}') # If None because of missing value due to cross-validation, GT edit 20220216
+                        continue
                 h.close()
                 # np.save(file0, outdict)
 
