@@ -48,13 +48,13 @@ for run in unique_runs:
 		onset = stim_of_interest.OnsetTR.values
 		duration = stim_of_interest.DurationTR.values
 		assert(len(duration) == 1)
-		for i in range((duration[0])): # just insert one in the correct position. The item id is the cond number.
-			design_matrix[(onset + i)-1, item] = 1 # If duration = 2 TR, then we want to occupy the second TR (i.e. two TRs, two rows of the matrix)
-			# the subtraction by 1 is because of python indexing. If the TR onset is 5, then we want that to be 5 in python indexing too (and not index 6)
+		# just insert one in the correct position. The item id is the cond number.
+		design_matrix[(onset)-1, item] = 1 # If duration = 2 TR, then we DON'T want to occupy the second TR (GLMsingle takes care of this if we specify stimdur as 4s (2TRs))
+		# the subtraction by 1 is because of python indexing. If the TR onset is 5, then we want that to be 5 in python indexing too (and not index 6)
 	design_matrices.append(design_matrix)
 	
 # Check the sum of the design matrices. We expect the sum to be n_items_in_run*n_runs
-sum_design_matrices = int(np.sum([np.sum(x) for x in design_matrices], axis=0) // duration[0])
+sum_design_matrices = int(np.sum([np.sum(x) for x in design_matrices], axis=0))
 assert (sum_design_matrices == n_cond)
 
 # Plot example design matrix
@@ -79,13 +79,18 @@ stimset_save = stimset.copy(deep=True)
 stimset_save.drop(columns=['Unnamed: 0'], inplace=True)
 # Get rid of "" in the Sentence col
 stimset_save.Sentence = stimset_save.Sentence.str.replace('"', '')
+# Create run columns
+stimset_save['run'] = stimset_save.Event.apply(lambda x: x.split('run')[-1].split('_')[0])
 
 # Create an index with the UID_SESSION-SESSION and then the itemid
 stimset_index = [f'{x.UID}_{session_str}.{x.itemid}' for x in stimset_save.itertuples()]
 stimset_save.index = stimset_index
 
 # Create session indicator (1 if first session, 2 if second session)
-stimset_save['SessionIndicator'] = np.where(stimset_save.Session == SESSION_TO_INCLUDE[0], 1, 2)
+stimset_save['sessionindicator'] = np.where(stimset_save.Session == SESSION_TO_INCLUDE[0], 1, 2)
+
+# Rename the columns, make all lowercase
+stimset_save.columns = [x.lower() for x in stimset_save.columns]
 
 stimset_save.to_csv(join(GLMDIR, 'design_matrices', 'associated_stimsets', f'stimset_{save_str}.csv'))
 stimset_save.to_pickle(join(GLMDIR, 'design_matrices', 'associated_stimsets', f'stimset_{save_str}.pkl'))

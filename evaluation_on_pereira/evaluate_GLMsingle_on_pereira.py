@@ -118,13 +118,13 @@ def main(raw_args=None):
     for i, s in enumerate(images_of_interest):
         print(f'Loading data from session UID: {args.UID}, dicom image: {s}\n')
         if args.test:
-            if i > 0:
+            if i == 7:
                 break
 
         file = np.array(nib.load(s).dataobj)
         assert (file.shape[3] == design[i].shape[0])
         data.append(file)
-        session_indicator = stimset.loc[stimset[f'nii_{args.preproc}_path'] == s, 'SessionIndicator'].values[0]
+        session_indicator = stimset.loc[stimset[f'nii_{args.preproc}_path'] == s, 'sessionindicator'].values[0]
         session_indicators.append(session_indicator)
         
     # get shape of data volume (XYZ) for convenience
@@ -133,7 +133,7 @@ def main(raw_args=None):
     
     print(f'Number of runs in data: {len(data)}.\nShape of Images (brain XYZ and TR): {data[0].shape}')
     if args.test:
-        design = [design[0]]
+        design = design[:7]
     
     print(f'Number of runs in design matrix: {len(design)}, with unique number of TRs across runs: {np.unique([x.shape[0] for x in design])}\n'
           f'and unique number of conditions: {np.unique([x.shape[1] for x in design])}\n'
@@ -192,7 +192,7 @@ def main(raw_args=None):
     # add changing parameters
     opt['pcstop'] = pcstop
     opt['fracs'] = fracs
-s
+
     # running python GLMsingle involves creating a GLM_single object
     # and then running the procedure using the .fit() routine
     glmsingle_obj = GLM_single(opt)

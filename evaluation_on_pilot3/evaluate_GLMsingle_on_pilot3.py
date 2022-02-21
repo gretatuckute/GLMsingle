@@ -211,15 +211,6 @@ def main(raw_args=None):
 
     else:
         print(f'GLMsingle outputs already exists in directory:\n\t{outputdir}')
-    
-        # load existing file outputs if they exist
-        # Reading data
-        # hf1 = h5py.File('test_data.h5', 'r')
-        # for name in hf1:
-        #     print(name)
-        #
-        # print(hf1.attrs.keys())
-        # hf1.close()
 
     sys.stdout.flush()
     elapsed_time = time.time() - start_time
