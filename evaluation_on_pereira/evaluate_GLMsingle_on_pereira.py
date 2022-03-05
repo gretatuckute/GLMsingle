@@ -29,14 +29,18 @@ import argparse
 
 warnings.filterwarnings('ignore')
 
+d_UID_to_session = {'18': 'FED_20151130a_3T1-FED_20160112d_3T2',
+                    '288': 'FED_20151106a_3T1-FED_20151201a_3T1',
+                    '289': 'FED_20150908b_3T2-FED_20151207a_3T1',
+                    '296': 'FED_20151030a_3T1-FED_20151130b_3T1',
+                    '426': 'FED_20170126c_3T2-FED_20170307b_3T2'}
 
 def main(raw_args=None):
     # Mapping specific
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--UID', default='18', type=str, help='UID str')
-    parser.add_argument('--session_str', default='FED_20151130a_3T1-FED_20160112d_3T2', type=str, help='Session str. Without PL2017')
-    parser.add_argument('--FL', default='tr2', type=str, help='TR str')
-    parser.add_argument('--datetag', default='20220215', type=str, help='Datetag str')
+    # parser.add_argument('--session_str', default='FED_20151130a_3T1-FED_20160112d_3T2', type=str, help='Session str. Without PL2017')
+    parser.add_argument('--FL', default='gs', type=str, help='FL')
     parser.add_argument('--stimdur', default=4, type=int, help='Stimulus duration in seconds')
     parser.add_argument('--tr', default=2, type=int, help='TR sampling rate')
     parser.add_argument('--preproc', default='swr', type=str,
@@ -68,12 +72,12 @@ def main(raw_args=None):
 
     # arguments to change in GLM
     pcstop = -args.pcstop
+    if pcstop == 0:
+        pcstop = '-0' # make sure the string names are correct!
     fracs = args.fracs
 
     # data args
     preproc = args.preproc
-    
-    # get metadata about stimulus duration and TR
     
     # create directory for saving data
     outputdir = join(root, 'output_glmsingle', f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}')
@@ -83,7 +87,7 @@ def main(raw_args=None):
 
     if user != 'gt' and not args.verbose:
         date = datetime.datetime.now().strftime("%Y%m%d-%T")
-        sys.stdout = open(join(logdir, f'out_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
+        sys.stdout = open(join(logdir, f'eval_pereira_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
     
     print('*' * 40)
     print(vars(args))
@@ -93,9 +97,13 @@ def main(raw_args=None):
     print(f'\nSave output dir: {outputdir}')
     print(f'\nDesign matrices dir: {designdir}')
     print(f'\nLog dir: {logdir}\n')
-
+    
+    if pcstop == '-0':
+        pcstop = -0 # revert back
+    
     ### Organize BOLD data, design matrices, metadata
-    SESSIONS = args.session_str.split('-')
+    session_str = d_UID_to_session[args.UID]
+    SESSIONS = session_str.split('-')
     if not SESSIONS[0].endswith('PL2017'):
         SESSIONS = [x + '_PL2017' for x in SESSIONS]
     if args.test:
@@ -103,7 +111,7 @@ def main(raw_args=None):
         SESSIONS = SESSIONS[:1]
 
     # Design matrix
-    load_str = f'UID-{args.UID}_SESSION-{args.session_str}_FL-{args.FL}_{args.datetag}_singletrial'
+    load_str = f'UID-{args.UID}_SESSION-{session_str}_FL-{args.FL}_singletrial'
     design = pd.read_pickle(join(designdir,  f'design_matrices_{load_str}.pkl'))
     
     # Associated stimset

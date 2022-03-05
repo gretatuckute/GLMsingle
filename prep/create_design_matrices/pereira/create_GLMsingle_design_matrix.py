@@ -9,17 +9,23 @@ import pickle
 import matplotlib.pyplot as plt
 
 GLMDIR = '/Users/gt/Documents/GitHub/GLMsingle/'
-FL = 'tr2'
+FL = 'gs'
 
-UID_TO_INCLUDE = [18]
-SESSION_TO_INCLUDE = ['FED_20151130a_3T1', 'FED_20160112d_3T2']
-DATE_TAG_TO_INCLUDE = ['20220215']
+UID_TO_INCLUDE = 426
+
+d_UID_to_session_list = {18: ['FED_20151130a_3T1', 'FED_20160112d_3T2'],
+						 288: ['FED_20151106a_3T1', 'FED_20151201a_3T1'],
+						 289: ['FED_20150908b_3T2', 'FED_20151207a_3T1'],
+						 296: ['FED_20151030a_3T1', 'FED_20151130b_3T1'],
+						 426: ['FED_20170126c_3T2', 'FED_20170307b_3T2']}
+
+SESSION_TO_INCLUDE = d_UID_to_session_list[UID_TO_INCLUDE]
 
 # Load the data dict
 data_dict = pd.read_csv('Pereira_FirstSession_SingleTrialTiming_20220215_wIPS_witemid.csv')
 
 # Get UID and sessions of interest
-df = data_dict.query('UID in @UID_TO_INCLUDE and Session in @SESSION_TO_INCLUDE')
+df = data_dict.query('UID == @UID_TO_INCLUDE and Session in @SESSION_TO_INCLUDE')
 
 # Sort stimset according to what was presented when
 stimset = df.sort_values(by=['Session','DicomNumber', 'OnsetTR'])
@@ -29,7 +35,13 @@ assert(len(stimset.Session.unique()) == len(SESSION_TO_INCLUDE))
 stimset['Session_DicomNumber'] = stimset.Session + '_' + stimset.DicomNumber.astype(str)
 
 n_runs = len(stimset.Session_DicomNumber.unique())
-unique_runs = stimset.Session_DicomNumber.unique() # list of unique runs for this subject
+
+# Make sure dicom images are in the right order
+unique_runs = stimset.Session_DicomNumber.unique() # list of unique runs for this subject. Because they are sorted, the index should be retained, but let's check:
+_, idx = np.unique(stimset.Session_DicomNumber, return_index=True)
+unique_runs_check = stimset.Session_DicomNumber.values[np.sort(idx)]
+assert(np.all(unique_runs == unique_runs_check))
+
 n_cond = len(stimset.Stim.unique())
 print(f'Number of runs: {n_runs}, number of conditions: {n_cond} for UID {UID_TO_INCLUDE} across {SESSION_TO_INCLUDE}\n')
 
@@ -68,11 +80,12 @@ plt.show()
 
 ### Save design matrices ###
 session_str = '-'.join(SESSION_TO_INCLUDE)
-uid_str = '-'.join([str(x) for x in UID_TO_INCLUDE])
-save_str = f"UID-{uid_str}_SESSION-{session_str}_FL-{FL}_{DATE_TAG_TO_INCLUDE[0]}_singletrial" # same save str for stimset and design matrices
+uid_str = '-'.join([str(x) for x in [UID_TO_INCLUDE]])
+save_str = f"UID-{uid_str}_SESSION-{session_str}_FL-{FL}_singletrial" # same save str for stimset and design matrices
 
 with open(join(GLMDIR, 'design_matrices', f'design_matrices_{save_str}.pkl'), 'wb') as f:
 	pickle.dump(design_matrices, f)
+	print(f'Saved design matrices to {join(GLMDIR, "design_matrices", f"design_matrices_{save_str}.pkl")}')
 
 ### Save stimset ###
 stimset_save = stimset.copy(deep=True)

@@ -11,6 +11,10 @@ input_neural_data/*
 design_matrices/*
 Prep/create_design_matrices/pereira/*.csv
 Prep/create_design_matrices/pereira/*.pickle
+post_hoc_analyze/**/*.csv
+post_hoc_analyze/**/*.png
+post_hoc_analyze/**/*.svg
+
 
 
 # various output

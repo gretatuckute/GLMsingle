@@ -1,10 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=run-%j
-#SBATCH --time=15:00:00
+#SBATCH --time=08:00:00
 #SBACTH --ntasks=1
 #SBATCH --output="run-%j.out"
 #SBATCH --error="run-%j.err"
-#SBATCH --mem=100G
+#SBATCH --mem=80G
+#SBATCH -p evlab
 
 source /om2/user/gretatu/anaconda/etc/profile.d/conda.sh
 conda activate glmsingle
