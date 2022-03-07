@@ -1,14 +1,12 @@
 """Sript for comparing the estimates from GLMsingle one settings versus another."
 Possibility of including traditional SPM GLM as well.
 """
-import os
-
 from utils import *
 
 compare = 'all'
 include_SPM = True
-UID = '18'
-norm = None
+UIDs = ['18', '288']
+norm = 'bySessVoxZ'
 
 rois = ['lang_LH_netw', 'lang_RH_netw', 'lang_LH_IFGorb', 'lang_LH_IFG', 'lang_LH_MFG', 'lang_LH_AntTemp', 'lang_LH_PostTemp',
 		'aud_LH_netw']
@@ -16,7 +14,7 @@ rois = ['lang_LH_netw', 'lang_RH_netw', 'lang_LH_IFGorb', 'lang_LH_IFG', 'lang_L
 ### DIRECTORIES ###
 GLMDIR = '/Users/gt/om/beta-neural-control/data/dict_neural_stimuli/' #'/Users/gt/Documents/GitHub/beta-neural-control/data/dict_neural_stimuli/'
 SPMDIR = '/Users/gt/Documents/GitHub/pereira_modeling/'
-SPM_fname = 'Pereira_FirstSession_TrialEffectSizes_20220223.csv'
+SPM_fname = 'Pereira_FirstSession_TrialEffectSizes_20220223_fixed-col-names_wstimid.csv'
 
 
 ### 1 vs 1: COMPARE BETAS ###
@@ -50,41 +48,43 @@ if compare == '1vs1':
 	
 ### COMPARE OUTPUTS FROM SEVERAL BETAS, ONE ROI AT A TIME ###
 if compare == 'all':
-	for roi in rois:
+	for UID in UIDs:
+		for roi in rois:
+		
+			save_str = f'betas-corr_{UID}_roi-{roi}_norm-{norm}'
+			
+			
+			# Load all files in GLMDIR
+			gs_files = [f for f in os.listdir(GLMDIR) if f.endswith('.pkl') and f.startswith(f'dict_{UID}')]
+			
+			# Only load modeltype d
+			gs_files = [f for f in gs_files if 'type-d' in f]
+			
+			
+			df_responses, gs_sents = load_all_dicts(gs_files=gs_files,
+																   GLMDIR=GLMDIR,
+																   roi=roi,
+																   norm=norm,)
+			
+			
+			if include_SPM:
+				spm_df, spm_sents = get_SPM_estimates(SPM_fname,
+														   SPMDIR=SPMDIR,
+														   UID=UID,)
+				assert (np.all(gs_sents == spm_sents))
+				# Add SPM estimates to df_responses as new col
+				df_responses['SPM'] = spm_df.values
 	
-		save_str = f'betas-corr_{UID}_roi-{roi}_norm-{norm}'
 		
 		
-		# Load all files in GLMDIR
-		gs_files = [f for f in os.listdir(GLMDIR) if f.endswith('.pkl')]
-		df_responses, gs_sents, lst_str_names = load_all_dicts(gs_files=gs_files,
-															   GLMDIR=GLMDIR,
-															   roi=roi,
-															   norm=norm,)
-		
-		if include_SPM:
-			spm_df, spm_sents = clean_up_SPM_estimates(SPM_fname,
-													   SPMDIR=SPMDIR,
-													   UID=UID,)
-			assert (np.all(gs_sents == spm_sents))
-			# Add SPM estimates to df_responses as new row
-			# Give SPM estimates a new name
-			df_responses = df_responses.append(spm_df, ignore_index=True)
-			lst_str_names.append('SPM')
-			# Rename last row
-			# df_responses.iloc[-1].rename('beta_SPM')
-	
-	
-		# Compute the correlation
-		df_corr = df_responses.T.corr()
-		df_corr.columns = lst_str_names
-		df_corr.index = lst_str_names
-		
-		heatmap(df_corr,
-				title=f'ROI: {roi}. Correlation of {roi} betas ({df_responses.shape[1]} items)\n'
-					  f'Normalized by {norm}. UID: {UID}',
-				save_str=save_str,
-				save=True,
-				vmin=0, vmax=1,)
+			# Compute the correlation
+			df_corr = df_responses.corr()
+			
+			heatmap(df_corr,
+					title=f'ROI: {roi}. Correlation of {roi} betas ({df_responses.shape[1]} items)\n'
+						  f'Normalized by {norm}. UID: {UID}',
+					save_str=save_str,
+					save=True,
+					vmin=0, vmax=1,)
 
 

@@ -1,8 +1,8 @@
 #!/bin/sh
 uids="288"
 preprocs="swr"
-pcstops="0 1 2 3 4 5 6 7 8 9 10"
-fracs="0.4 0.5 0.6 0.7 0.8 0.9 1.0"
+pcstops="0 1 2 3 4 5 6 7"
+fracs="0.7 0.8 0.9 0.925 0.95 0.975 1.0"
 resultdir="/om5/group/evlab/u/gretatu/GLMsingle/output_glmsingle"
 for uid in $uids ; do
   for preproc in $preprocs ; do

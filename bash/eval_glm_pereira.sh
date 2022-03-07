@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=run-%j
-#SBATCH --time=07:00:00
+#SBATCH --time=06:30:00
 #SBACTH --ntasks=1
 #SBATCH --output="run-%j.out"
 #SBATCH --error="run-%j.err"

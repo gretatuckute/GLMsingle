@@ -11,41 +11,44 @@ matplotlib.rcParams['svg.fonttype'] = 'none'
 PLOTDIR = os.path.abspath(join(os.path.dirname( __file__ ), '..', 'plots'))
 CSVDIR = os.path.abspath(join(os.path.dirname( __file__ ), '..', 'csvs'))
 
-def clean_up_SPM_estimates(SPM_fname: str = None,
+def get_SPM_estimates(SPM_fname: str = None,
 						   SPMDIR: str = None,
 						   UID: str = None,
 						   roi: str = 'lang_LH_netw'):
 	"""Load and clean up SPM estimates (column names according to Ben)."""
 	
 	spm_df = pd.read_csv(SPMDIR + SPM_fname)
-	# Lower-case first letter of column names in SPM dataframe if starting with 'Lang'
-	spm_df.columns = [c[0].lower() + c[1:] if c.startswith('Lang') else c for c in spm_df.columns]
-	spm_df.columns = [c[:2].lower() + c[2:] if c.startswith('MD') else c for c in spm_df.columns]
-	spm_df = spm_df.rename(columns={'lang_LH_Netw': 'lang_LH_netw',
-									'lang_RH_Netw': 'lang_RH_netw',
-									'md_LH_Netw': 'md_LH_netw',
-									'md_RH_Netw': 'md_RH_netw'})
-	
-	# Format UID col as strings
 	spm_df['UID'] = spm_df['UID'].astype(str)
+	spm_df = spm_df.query('UID == @UID').set_index('stim_id')
 	
-	spm_vals = spm_df.query('UID == @UID')[roi]
-	spm_sents = spm_df.query('UID == @UID')['Sentence'].str.replace('"', '').values
-	
+	# Reorder so itemid is ascending
+	spm_df = spm_df.sort_values(by='itemid')
+	index_itemid = [int(x.split('.')[-1]) for x in spm_df.index]
+	assert (index_itemid == spm_df.itemid.values).all()
+	spm_vals = spm_df[roi]
+	spm_sents = spm_df['sentence'].values
+
 	return spm_vals, spm_sents
 
 def load_all_dicts(gs_files: list = None,
 				   GLMDIR: str = None,
 				   norm: typing.Union[str, bool] = 'bySessVoxZ',
 				   roi: str = 'lang_LH_netw'):
+	"""Return df of rows = sentence, cols = gs single response for ROI of interest"""
 	
 	# Load, extract the ROI of interest
 	lst_responses = []
 	lst_sents = []
 	lst_str_names = []
+	
+	# Make sure that the files are sorted as 0, 1, 2, ... and not 0 to 10
+	# Pad pcstop- with 0s
+	
 	for f in np.sort(gs_files):
 		# Obtain names of the params that change
 		str_name = f.split('_')[-2:]
+		if len(str_name[0]) < 9:
+			str_name[0] = str_name[0].split('-')[0] + '-0' + str_name[0].split('-')[-1]
 		modeltype = f.split('_')[5]
 		str_name[-1] = str_name[-1].split('.pkl')[0]
 		str_name.append(modeltype)
@@ -61,12 +64,13 @@ def load_all_dicts(gs_files: list = None,
 		lst_sents.append(glm_sents)
 	
 	df_responses = pd.DataFrame(lst_responses, index=lst_str_names)
+	df_responses = df_responses.sort_index()
 	
 	# Assert that all sents were identical (for each file)
 	for i in range(len(lst_sents)):
 		assert (np.all(lst_sents[i] == lst_sents[0]))
 		
-	return df_responses, lst_sents[0], lst_str_names
+	return df_responses.T, lst_sents[0]
 
 def heatmap(df_corr: pd.DataFrame = None,
 			title: str = None,
