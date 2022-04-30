@@ -3,9 +3,10 @@ Possibility of including traditional SPM GLM as well.
 """
 from utils import *
 
-compare = 'all'
-include_SPM = True
-UIDs = ['18', '288']
+compare = 'uidvsuid'
+include_SPM = False
+include_gs = True
+UIDs = ['18', '288', '289', '296', '426']
 norm = 'bySessVoxZ'
 
 rois = ['lang_LH_netw', 'lang_RH_netw', 'lang_LH_IFGorb', 'lang_LH_IFG', 'lang_LH_MFG', 'lang_LH_AntTemp', 'lang_LH_PostTemp',
@@ -69,8 +70,8 @@ if compare == 'all':
 			
 			if include_SPM:
 				spm_df, spm_sents = get_SPM_estimates(SPM_fname,
-														   SPMDIR=SPMDIR,
-														   UID=UID,)
+													SPMDIR=SPMDIR,
+													UID=UID,)
 				assert (np.all(gs_sents == spm_sents))
 				# Add SPM estimates to df_responses as new col
 				df_responses['SPM'] = spm_df.values
@@ -87,4 +88,75 @@ if compare == 'all':
 					save=True,
 					vmin=0, vmax=1,)
 
+### COMPARE OUTPUT FROM ONE BETA INSTANTIATION, SUBJECT VS SUBJECT ###
+if compare == 'uidvsuid':
+	roi = 'lang_LH_netw'
+	UID_str = '-'.join(UIDs)
+	save_str = f'corr_{roi}_{UID_str}'
+	
+	if include_SPM:
+		save_str += '_SPM'
+		lst_spm_dfs = []
+		lst_spm_sents = []
+		for UID in UIDs:
+			spm_df, spm_sents = get_SPM_estimates(SPM_fname,
+												  SPMDIR=SPMDIR,
+												  UID=UID,
+												  roi=roi)
+			lst_spm_dfs.append(spm_df.reset_index(drop=True))
+			lst_spm_sents.append(spm_sents)
+			
+		
+		# Assert that sentences match up
+		assert ([spm_sents[0] == spm_sents[i] for i in range(len(lst_spm_sents))])
+		df_across_uids = pd.concat(lst_spm_dfs, axis=1)
+		
+		df_corr = df_across_uids.corr()
+		df_corr.index = UIDs
+		df_corr.columns = UIDs
+		
+		heatmap(df_corr,
+				title=f'ROI: {roi}. Correlation across {len(spm_sents)} items\n'
+					  f'UIDs: {UID_str}',
+				save_str=save_str,
+				save=True,
+				vmin=0, vmax=0.3,
+				figsize=(5,5))
+		
+	pcstop = 7
+	fracs = 0.7
+	save_str = f'corr_{roi}_{UID_str}_pcstop-{pcstop}_fracs-{fracs}_norm-{norm}'
+	
+	# Load gs data across UIDs
+	lst_gs_dfs = []
+	lst_gs_sents = []
+	for UID in UIDs:
+		GLM_fname = f'dict_{UID}_1-2_gs_thresh-90_type-d_preproc-swr_pcstop-{pcstop}_fracs-{fracs}.pkl'
+		
+		### LOAD AND CLEAN UP DATA ###
+		glm_d = pd.read_pickle(GLMDIR + GLM_fname)
+		gs_df = glm_d[f'df_rois_norm-{norm}']
+		gs_sents = glm_d['stimset']['sentence'].values
+		lst_gs_sents.append(gs_sents)
+		lst_gs_dfs.append(gs_df[roi].reset_index(drop=True))
+	
+	assert ([lst_gs_sents[0] == lst_gs_sents[i] for i in range(len(lst_gs_sents))])
+	df_across_uids = pd.concat(lst_gs_dfs, axis=1)
+	
+	df_corr = df_across_uids.corr()
+	df_corr.index = UIDs
+	df_corr.columns = UIDs
+	
+	heatmap(df_corr,
+			title=f'ROI: {roi}. Correlation across {len(gs_sents)} items\n'
+				  f'UIDs: {UID_str}\n'
+				  f'Pcstop: {pcstop}, fracs: {fracs}',
+			save_str=save_str,
+			save=True,
+			vmin=0, vmax=0.3,
+			figsize=(5, 5))
+	
+	
 
+	
+	
