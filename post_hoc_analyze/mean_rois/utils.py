@@ -77,9 +77,10 @@ def heatmap(df_corr: pd.DataFrame = None,
 			save_str: str = None,
 			save: bool = False,
 			vmin: float = None,
-			vmax: float = None,):
+			vmax: float = None,
+			figsize: tuple = (20, 20),):
 	
-	fig, ax = plt.subplots(figsize=(20, 20))
+	fig, ax = plt.subplots(figsize=figsize)
 	sns.heatmap(df_corr,
 				annot=False,
 				fmt='.2f',
