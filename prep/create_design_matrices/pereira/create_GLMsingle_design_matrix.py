@@ -63,7 +63,9 @@ for run in unique_runs:
 		# just insert one in the correct position. The item id is the cond number.
 		design_matrix[(onset)-1, item] = 1 # If duration = 2 TR, then we DON'T want to occupy the second TR (GLMsingle takes care of this if we specify stimdur as 4s (2TRs))
 		# the subtraction by 1 is because of python indexing. If the TR onset is 5, then we want that to be 5 in python indexing too (and not index 6)
+		# The pereira itemIDs are zero-indexed (thus no subtraction there).
 	design_matrices.append(design_matrix)
+	
 	
 # Check the sum of the design matrices. We expect the sum to be n_items_in_run*n_runs
 sum_design_matrices = int(np.sum([np.sum(x) for x in design_matrices], axis=0))
