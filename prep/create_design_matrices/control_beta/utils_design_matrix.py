@@ -4,13 +4,41 @@ import numpy as np
 from os.path import join
 import pickle
 import matplotlib.pyplot as plt
+from getpass import getuser
 
 #### RESOURCES ####
+user = getuser()
+
+if user == 'gt':
+	GLMDIR = '/Users/gt/Documents/GitHub/GLMsingle/'
+	STIMSETDIR = '/Users/gt/Documents/GitHub/beta-neural-control/material_selection/fMRI_ready_stimsets/' # where stimsets are stored
+	OUTPUTSDIR = '/Volumes/GoogleDrive/My Drive/Research2020/control/EXPERIMENT_RELATED/beta-neural-control/outputs/' # where outputs from MATLAB expt are stored, locally (from Franklin)
+	MRIPYTHONDIR = '/Users/gt/Documents/GitHub/mri_python/'
+	CONTROLNEURALDIR = '/Users/gt/Documents/GitHub/control-neural/'
+elif user == 'gretatu':
+	GLMDIR = '/om5/group/evlab/u/gretatu/GLMsingle/'
+	STIMSETDIR = '/om/user/gretatu/beta-neural-control/material_selection/fMRI_ready_stimsets/'  # where stimsets are stored
+	OUTPUTSDIR = '/Volumes/GoogleDrive/My Drive/Research2020/control/EXPERIMENT_RELATED/beta-neural-control/outputs/'  # where outputs from MATLAB expt are stored, locally (from Franklin)
+	MRIPYTHONDIR = '/om5/group/evlab/u/gretatu/mri_python/'
+	CONTROLNEURALDIR = '/om/user/gretatu/control-neural/'
+else:
+	raise Exception('User not recognized')
+
+
 d_UID_to_session_list = {848: ['FED_20220420b_3T1', 'FED_20220427a_3T1'],
 						 853: ['FED_20211008a_3T1', 'FED_20211013b_3T1'],
 						 865: ['FED_20220414b_3T1', 'FED_20220415a_3T1'],
 						 875: ['FED_20220408a_3T1', 'FED_20220411a_3T1'],
 						 876: ['FED_20220413a_3T1', 'FED_20220420a_3T1']}
+
+## Expected experiment params ##
+n_trs = 168
+n_runs = 20
+n_unique_trials_per_run = 50
+n_unique_trials = n_unique_trials_per_run * n_runs
+fix_time = 4 # seconds
+trial_time = 2 # seconds
+break_index = 50
 
 
 def check_onsets_table(df_onsets: pd.DataFrame = None,
