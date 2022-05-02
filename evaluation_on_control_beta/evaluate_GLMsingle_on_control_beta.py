@@ -39,7 +39,7 @@ def main(raw_args=None):
                         help='Which preprocessing pipeline to use. Default is swr.')
     parser.add_argument('--pcstop', default=1, type=int,
                         help='How many PCs to remove')
-    parser.add_argument('--fracs', default=0.4, type=float,
+    parser.add_argument('--fracs', default=0.975, type=float,
                         help='Fraction of ridge regularization to use')
     parser.add_argument('--test', default=False, type=bool,
                         help='Whether to run test mode and only use one run for testing')
@@ -58,12 +58,7 @@ def main(raw_args=None):
         root = '/Users/gt/om5/GLMsingle/'
     os.chdir(join(root))
     
-    # create directory for saving data
-    outputdir = join(root, 'output_glmsingle', f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}')
-    designdir = join(root, 'design_matrices')   # set design matrix directory
-    stimsetdir = join(designdir, 'associated_stimsets')    # set stimset directory
-    logdir = join(root, 'logs')
-    
+
     import glmsingle
     from glmsingle.glmsingle import GLM_single
     plot = False
@@ -76,11 +71,17 @@ def main(raw_args=None):
 
     # data args
     preproc = args.preproc
-    
+
+    # create directory for saving data
+    outputdir = join(root, 'output_glmsingle',
+                     f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}')
+    designdir = join(root, 'design_matrices')  # set design matrix directory
+    stimsetdir = join(designdir, 'associated_stimsets')  # set stimset directory
+    logdir = join(root, 'logs')
 
     if user != 'gt' and not args.verbose:
         date = datetime.datetime.now().strftime("%Y%m%d-%T")
-        sys.stdout = open(join(logdir, f'eval_pereira_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
+        sys.stdout = open(join(logdir, f'eval_control_beta_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
     
     print('*' * 40)
     print(vars(args))
@@ -95,27 +96,29 @@ def main(raw_args=None):
         pcstop = -0 # revert back
     
     ### Organize BOLD data, design matrices, metadata
-    session_str = d_UID_to_session_list[int(args.UID)]
-    SESSIONS = session_str.split('-')
-    if not SESSIONS[0].endswith('PL2017'):
-        SESSIONS = [x + '_PL2017' for x in SESSIONS]
+    SESSION_TO_INCLUDE = d_UID_to_session_list[int(args.UID)]
+    session_str = '-'.join(SESSION_TO_INCLUDE)
+
+    if not SESSION_TO_INCLUDE[0].endswith('PL2017'):
+        SESSIONS = [x + '_PL2017' for x in SESSION_TO_INCLUDE]
     if args.test:
-        print(f'Running in test mode. Only using one session: {SESSIONS[:1]}')
-        SESSIONS = SESSIONS[:1]
+        print(f'Running in test mode. Only using one session: {SESSION_TO_INCLUDE[:1]}')
+        SESSIONS = SESSION_TO_INCLUDE[:1]
 
     # Design matrix
     load_str = f'UID-{args.UID}_SESSION-{session_str}_FL-{args.FL}_singletrial'
     design = pd.read_pickle(join(designdir,  f'design_matrices_{load_str}.pkl'))
     
     # Associated stimset
-    stimset = pd.read_pickle(join(stimsetdir, f'stimset_{load_str}.pkl'))
+    stimset = pd.read_csv(join(stimsetdir, f'stimset_{load_str}.csv'))
     # want to ensure that the loaded neural data matches the stimset and design matrix
     
     data = []
     session_indicators = []
     
-    # Load each unique dicom image
-    images_of_interest = stimset[f'nii_{args.preproc}_path'].unique()
+    # Load each unique dicom image and retain the order
+    _, idx = np.unique(stimset[f'nii_{args.preproc}_path'].values, return_index=True)
+    images_of_interest = stimset[f'nii_swr_path'].values[np.sort(idx)]
 
     for i, s in enumerate(images_of_interest):
         print(f'Loading data from session UID: {args.UID}, dicom image: {s}\n')
