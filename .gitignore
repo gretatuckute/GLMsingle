@@ -9,12 +9,12 @@ data/.DS_Store
 data/
 input_neural_data/*
 design_matrices/*
-Prep/create_design_matrices/pereira/*.csv
-Prep/create_design_matrices/pereira/*.pickle
+prep/create_design_matrices/pereira/*.csv
+prep/create_design_matrices/pereira/*.pickle
 post_hoc_analyze/**/*.csv
 post_hoc_analyze/**/*.png
 post_hoc_analyze/**/*.svg
-
+output_glmsingle/html_plots/**/*.html
 
 
 # various output
