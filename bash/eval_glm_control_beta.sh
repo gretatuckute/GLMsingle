@@ -2,8 +2,7 @@
 #SBATCH --job-name=run-%j
 #SBATCH --time=08:30:00
 #SBACTH --ntasks=1
-#SBATCH --output="run-%j.out"
-#SBATCH --error="run-%j.err"
+#SBATCH --output="../logs/eval_glm_control_beta-%j.out"
 #SBATCH --mem=80G
 #SBATCH -p evlab
 
