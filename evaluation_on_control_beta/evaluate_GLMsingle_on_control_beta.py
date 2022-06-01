@@ -106,7 +106,7 @@ def main(raw_args=None):
         SESSIONS = SESSION_TO_INCLUDE[:1]
 
     # Design matrix
-    load_str = f'UID-{args.UID}_SESSION-{session_str}_FL-{args.FL}_singletrial'
+    load_str = f'UID-{args.UID}_SESSION-{session_str}'
     design = pd.read_pickle(join(designdir,  f'design_matrices_{load_str}.pkl'))
     
     # Associated stimset
