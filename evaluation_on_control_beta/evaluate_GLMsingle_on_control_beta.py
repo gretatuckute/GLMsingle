@@ -27,6 +27,16 @@ from utils import *
 
 warnings.filterwarnings('ignore')
 
+def str2none(v):
+	"""If string is 'None', return None. Else, return the string"""
+	if v is None:
+		print(f'Already None: {v}')
+		return v
+	if v.lower() in ('none'):
+		print(f'String arg - None: {v}')
+		return None
+	else:
+		return v
 
 def main(raw_args=None):
     # Mapping specific
@@ -47,6 +57,8 @@ def main(raw_args=None):
                         help='Whether to print output and not create a log file')
     parser.add_argument('--overwrite', default=True, type=bool,
                         help='Whether to overwrite results in case outputdir already exists')
+    parser.add_argument('--external_output_root', default=None, type=str2none,
+                        help='If not None, supply a path to a directory to save outputs to')
     args = parser.parse_args(raw_args)
     
     ### Set paths ###
@@ -73,7 +85,12 @@ def main(raw_args=None):
     preproc = args.preproc
 
     # create directory for saving data
-    outputdir = join(root, 'output_glmsingle',
+    if args.external_output_root is None:
+        output_root = join(root, 'output_glmsingle')
+    else:
+        output_root = join(args.external_output_root, 'output_glmsingle')
+        
+    outputdir = join(output_root,
                      f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}')
     designdir = join(root, 'design_matrices')  # set design matrix directory
     stimsetdir = join(designdir, 'associated_stimsets')  # set stimset directory

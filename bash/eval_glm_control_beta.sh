@@ -1,9 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=run-%j
+#SBATCH --job-name=eval_glm_control_beta-%j
 #SBATCH --time=08:30:00
 #SBACTH --ntasks=1
-#SBATCH --output="../logs/eval_glm_control_beta-%j.out"
-#SBATCH --mem=80G
+#SBATCH --output="out/eval_glm_control_beta-%j.out"
+#SBATCH --error="err/eval_glm_control_beta-%j.err"
+#SBATCH --mem=90G
 #SBATCH -p evlab
 
 source /om2/user/gretatu/anaconda/etc/profile.d/conda.sh
