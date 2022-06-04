@@ -57,7 +57,7 @@ def main(raw_args=None):
                         help='Whether to print output and not create a log file')
     parser.add_argument('--overwrite', default=True, type=bool,
                         help='Whether to overwrite results in case outputdir already exists')
-    parser.add_argument('--external_output_root', default=None, type=str2none,
+    parser.add_argument('--external_output_root', default='/nese/mit/group/evlab/u/gretatu/GLMsingle/', type=str2none,
                         help='If not None, supply a path to a directory to save outputs to')
     args = parser.parse_args(raw_args)
     
