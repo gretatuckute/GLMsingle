@@ -1,8 +1,8 @@
 #!/bin/sh
 uids="848 853 865 875 876"
 preprocs="swr"
-pcstops="1 2 3 4 5 6"
-fracs="0.75 0.8 0.85 0.9 0.92 0.94 0.96 0.98 1.0"
+pcstops="3 4 5 6 7 8 9 10"
+fracs="0.05 0.15"
 resultdir="/nese/mit/group/evlab/u/gretatu/GLMsingle/output_glmsingle"
 #resultdir="/om5/group/evlab/u/gretatu/GLMsingle/output_glmsingle"
 for uid in $uids ; do
