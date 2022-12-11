@@ -15,6 +15,7 @@ post_hoc_analyze/**/*.csv
 post_hoc_analyze/**/*.png
 post_hoc_analyze/**/*.svg
 output_glmsingle/html_plots/**/*.html
+pdfs/* 
 
 
 # various output
