@@ -1,8 +1,8 @@
 #!/bin/sh
-uids="848 853 865 875 876"
+uids="837"
 preprocs="swr"
-pcstops="3 4 5 6 7 8 9 10"
-fracs="0.05 0.15"
+pcstops="5"
+fracs="0.05"
 resultdir="/nese/mit/group/evlab/u/gretatu/GLMsingle/output_glmsingle"
 #resultdir="/om5/group/evlab/u/gretatu/GLMsingle/output_glmsingle"
 for uid in $uids ; do
@@ -14,7 +14,7 @@ for uid in $uids ; do
           if [ ! -f "${resultdir}/${expected_file}" ]; then
               echo -e "NOT EXISTING: ${expected_file}\n*********** Submitting sbatch job ***********"
               echo "eval_glm_control_beta.sh $preproc $pcstop $frac $uid"
-#              sbatch eval_glm_control_beta.sh $preproc $pcstop $frac $uid
+              sbatch eval_glm_control_beta.sh $preproc $pcstop $frac $uid
 #          else
 #              echo -e "EXISTING: $expected_file\n*********** Skipping sbatch job ***********"
           fi
