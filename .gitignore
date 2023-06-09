@@ -9,6 +9,7 @@ data/.DS_Store
 data/
 input_neural_data/*
 design_matrices/*
+design_matrices_no_fix/*
 prep/create_design_matrices/pereira/*.csv
 prep/create_design_matrices/pereira/*.pickle
 post_hoc_analyze/**/*.csv
