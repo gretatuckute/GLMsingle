@@ -98,14 +98,14 @@ def main(raw_args=None):
         os.mkdir(output_root)
         
     outputdir = join(output_root,
-                     f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}')
+                     f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_no_fix')
     designdir = join(root, 'design_matrices_no_fix')  # set design matrix directory
     stimsetdir = join(designdir, 'associated_stimsets')  # set stimset directory
     logdir = join(root, 'logs')
 
     if user != 'gt' and not args.verbose:
         date = datetime.datetime.now().strftime("%Y%m%d-%T")
-        sys.stdout = open(join(logdir, f'eval_control_beta_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
+        sys.stdout = open(join(logdir, f'eval_control_beta_no_fix_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
     
     print('*' * 40)
     print(vars(args))
