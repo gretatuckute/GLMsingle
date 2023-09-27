@@ -142,7 +142,7 @@ def main(raw_args=None):
     
     # Load each unique dicom image and retain the order
     _, idx = np.unique(stimset[f'nii_{args.preproc}_path'].values, return_index=True)
-    images_of_interest = stimset[f'nii_swr_path'].values[np.sort(idx)]
+    images_of_interest = stimset[f'nii_{args.preproc}_path'].values[np.sort(idx)]
 
     for i, s in enumerate(images_of_interest):
         print(f'Loading data from session UID: {args.UID}, dicom image: {s}\n')
