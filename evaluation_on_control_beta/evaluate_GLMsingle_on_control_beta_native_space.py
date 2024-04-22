@@ -242,7 +242,7 @@ def main(raw_args=None):
                         help='Fraction of ridge regularization to use')
     parser.add_argument('--test', default=False, type=bool,
                         help='Whether to run test mode and only use one run for testing')
-    parser.add_argument('--verbose', default=True, type=bool,
+    parser.add_argument('--verbose', default=False, type=bool,
                         help='Whether to print output and not create a log file')
     parser.add_argument('--overwrite', default=True, type=bool,
                         help='Whether to overwrite results in case outputdir already exists')
@@ -274,9 +274,9 @@ def main(raw_args=None):
 
     # create directory for saving data
     if args.external_output_root is None:
-        output_root = join(root, 'output_glmsingle')
+        output_root = join(root, 'output_glmsingle_native_space')
     else:
-        output_root = join(args.external_output_root, 'output_glmsingle')
+        output_root = join(args.external_output_root, 'output_glmsingle_native_space')
 
     outputdir = join(output_root,
                      f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}')
@@ -331,6 +331,7 @@ def main(raw_args=None):
                           expected_duration=336,
                           tr=2,
                           n_runs=10,
+                          preproc_config='native_space',
                           save=False, overwrite=False)
 
 
