@@ -41,6 +41,191 @@ def str2none(v):
     else:
         return v
 
+def run_id_to_nii(subject_id: str,
+                  OUTPUT_STIMSET_DIR: str,
+                  SUBJECTSDIR: str,
+                  stimset_name: str,
+                  expected_duration: int,
+                  tr: int,
+                  n_runs: int,
+                  preproc_config: str = 'native_space',
+                  save: bool = True,
+                  overwrite: bool = False):
+    """
+    Add dicom information to stimset.
+    Get dicom info and paths to preprocessed nii files.
+    """
+
+    # Print all args
+    print(f'Running run_id_to_dicom with the following args: {locals()}\n')
+
+    # Load the stimset (has both sessions)
+    df_stimset = pd.read_csv(join(OUTPUT_STIMSET_DIR, f'stimset_{stimset_name}.csv'))
+    df_stimset_orig = df_stimset.copy(deep=True)
+
+    # Get the session id for this subject
+    session_ids = d_UID_to_session_list[int(subject_id)]
+
+    # Get unique sessions
+    unique_uid_sessions = df_stimset['uid_session'].unique()
+    # just get the last part (after the UID) and assert that it matches the session_ids
+    unique_sessions = ['_'.join(x.split('_')[1:]) for x in unique_uid_sessions]
+    assert session_ids == unique_sessions
+
+    lst_df_dicom_across_sess = []
+    for session_id in session_ids:
+        # session_id = 'FED_20220414c_3T1'
+
+        # Get a stimset that only has the current session
+        df_stimset_sess = df_stimset_orig[df_stimset_orig['uid_session'].str.contains(session_id)]
+
+        # Generate a simple savestr:
+        savestr = f'{stimset_name}_{subject_id}_session-{session_id}'
+
+        # Get the uid session
+        uid_session = f'{subject_id}_{session_id}'
+
+        # Load info from data.cfg file
+        data_cfg_path = join(SUBJECTSDIR,
+                             f'{uid_session}_PL2017')
+        data_cfg = pd.read_csv(join(data_cfg_path,
+                                    'data.cfg'),
+                               header=None)
+
+        # Reformat data.cfg -- map dicoms to functionals
+        # Get dicoms (all lines below #dicoms)
+        dicoms = data_cfg[data_cfg[0].str.contains('dicoms')]
+        # Omit first one row name
+        dicoms = dicoms[1:].values
+
+        # Get functional numbers (line below #functionals)
+        functionals_idx = data_cfg[data_cfg[0].str.contains('functionals')].index[0]
+        functionals = data_cfg.iloc[functionals_idx + 1].values
+        # Remove trailing whitespace
+        functionals = [f.strip() for f in functionals]
+        # convert numpy string array to list of ints
+        functionals = functionals[0].split(' ')
+        functionals = [int(i) for i in functionals]
+
+        # Read dicom summary
+        dicom_summary_path = join(SUBJECTSDIR,
+                                  f'{uid_session}_PL2017',
+                                  'dicom_summary.csv')
+        dicom_summary = pd.read_csv(dicom_summary_path, index_col=False)
+
+        # Get RUN_NUM for all rows that have IPS=expected_IPS
+        expected_IPS = int(expected_duration / tr)
+
+        run_nums = dicom_summary.query(f'IPS == {expected_IPS}')['RUN_NUM'].values
+        assert len(run_nums) == n_runs
+        assert all([i in functionals for i in run_nums])  # assert that all runs nums exist in functionals
+
+        # Get the idx of the runs from functionals, but note that it is 1-indexed
+        run_nums_idx = [functionals.index(i) + 1 for i in run_nums]
+
+        # In dicoms, obtain the dicom string if it is in the run_nums
+        dicoms_in_run_nums = []  # for IPS of interest
+        dicom_nums = []
+        dicom_ids = []
+        for dicom in dicoms:
+            dicom_num = dicom[0].split('-')[-2]
+            dicom_id = '-'.join(dicom[0].split('.')[-2].split('/')[-1].split('-')[
+                                :-1])  # Get identifier consisting of the random number and then the dicom image number
+
+            if int(dicom_num) in run_nums:
+                dicoms_in_run_nums.append(dicom[0])
+                dicom_nums.append(dicom_num)
+                dicom_ids.append(dicom_id)
+
+        df_dicom = pd.DataFrame({'dicomnumber': dicom_nums,
+                                 'dicomid': dicom_ids,
+                                 'dicom_path': dicoms_in_run_nums})
+
+        # Get the dicomids from stimset
+        stimset_dicomids = df_stimset_sess.loc[df_stimset_sess['uid_session'] == uid_session, 'dicomid'].unique()
+
+        # Get the run numbers from the control runs (1-10)
+        crit_expt_run_id = np.unique(df_stimset_sess['run_id'].values)
+        assert all(np.diff(crit_expt_run_id) == 1)  # make sure they are sorted and ascending
+
+        df_dicom['run_id'] = crit_expt_run_id
+        df_dicom['run_nums_idx_functionals'] = run_nums_idx  # Which number it has in the preprocessed nii files
+        df_dicom['uid_session'] = uid_session
+
+        lst_df_dicom_across_sess.append(df_dicom)
+
+    df_dicom_across_sess = pd.concat(lst_df_dicom_across_sess)
+
+    # Add to stimset and match to the run_id
+    df_stimset = df_stimset.merge(df_dicom_across_sess, on='run_id', how='left')
+
+    # Assert whether _x and _y columns are the same and only keep one
+    xy_cols = [col for col in df_stimset.columns if col.endswith('_x')]
+    for col in xy_cols:
+        if col == 'dicomnumber_x':
+            # make both int
+            assert df_stimset[col].astype(int).equals(df_stimset[col[:-2] + '_y'].astype(int))
+        else:
+            assert df_stimset[col].equals(df_stimset[col[:-2] + '_y'])
+        df_stimset = df_stimset.drop(columns=[col])
+        # Rename the y column to the original name
+        df_stimset = df_stimset.rename(columns={col[:-2] + '_y': col[:-2]})
+
+    # Create the path to the preprocessed nii files
+
+    # E.g., rfunc_run-03_bold.nii
+    df_stimset['nii_r_path'] = [join(SUBJECTSDIR,
+                                    f'{df_stimset.loc[idx, "uid_session"]}_PL2017',
+                                    preproc_config,
+                                    'func',
+                                    f'rfunc_run-{str(run_idx).zfill(2)}_bold.nii') for idx, run_idx in
+                                enumerate(df_stimset['run_nums_idx_functionals'])]
+
+
+    # E.g., wrfunc_run-03_bold.nii
+    df_stimset['nii_wr_path'] = [join(SUBJECTSDIR,
+                                        f'{df_stimset.loc[idx, "uid_session"]}_PL2017',
+                                      preproc_config,
+                                      'func',
+                                        f'wrfunc_run-{str(run_idx).zfill(2)}_bold.nii') for idx, run_idx in
+                                     enumerate(df_stimset['run_nums_idx_functionals'])]
+
+    # E.g., swrfunc_run-03_bold.nii
+    df_stimset['nii_swr_path'] = [join(SUBJECTSDIR,
+                                        f'{df_stimset.loc[idx, "uid_session"]}_PL2017',
+                                       preproc_config,
+                                       'func',
+                                        f'swrfunc_run-{str(run_idx).zfill(2)}_bold.nii') for idx, run_idx in
+                                     enumerate(df_stimset['run_nums_idx_functionals'])]
+
+    # Assert that these files actually exist
+    if preproc_config == 'native_space':
+        assert all([os.path.exists(i) for i in df_stimset['nii_r_path']])
+    if preproc_config == 'DefaultMNI_PlusStructural':
+        assert all([os.path.exists(i) for i in df_stimset['nii_r_path']])
+        assert all([os.path.exists(i) for i in df_stimset['nii_wr_path']])
+        assert all([os.path.exists(i) for i in df_stimset['nii_swr_path']])
+
+    df_stimset['expected_IPS'] = expected_IPS
+
+    # Assert that nothing weird happened with e.g., item_id indexing
+    assert df_stimset_orig.item_id.equals(df_stimset.item_id)
+
+    # Save (take the original name and suffix _wdicom)
+    if save:
+        fname = join(OUTPUT_STIMSET_DIR, stimset_name, f'stimset_{stimset_name}_wnii.csv')
+
+        if not os.path.exists(fname) or overwrite:
+            df_stimset.to_csv(fname, index=False)
+            print(f'Saved {fname} to {OUTPUT_STIMSET_DIR}')
+        elif os.path.exists(fname) and not overwrite:
+            print(f'File {fname} already exists. Set overwrite=True to overwrite it.')
+        else:
+            print(f'File {fname} already exists. Set save=True to save it.')
+
+    return df_stimset
+
+
 
 def main(raw_args=None):
     # Mapping specific
@@ -136,189 +321,7 @@ def main(raw_args=None):
 
     """In the new el pipeline, we can't load the preprocessed nii files via their dicom number. We need to find a 
     a given functional run's nii file by its 1-indexed number (ranging between 1 and number of functional runs in that session)
-    
-    
     """
-
-    def run_id_to_nii(subject_id: str,
-                      OUTPUT_STIMSET_DIR: str,
-                      SUBJECTSDIR: str,
-                      stimset_name: str,
-                      expected_duration: int,
-                      tr: int,
-                      n_runs: int,
-                      save: bool = True,
-                      overwrite: bool = False):
-        """
-        Add dicom information to stimset.
-        Get dicom info and paths to preprocessed nii files.
-        """
-
-        # Print all args
-        print(f'Running run_id_to_dicom with the following args: {locals()}\n')
-
-        # Load the stimset (has both sessions)
-        df_stimset = pd.read_csv(join(OUTPUT_STIMSET_DIR, f'stimset_{stimset_name}.csv'))
-        df_stimset_orig = df_stimset.copy(deep=True)
-
-        # Get the session id for this subject
-        session_ids = d_UID_to_session_list[int(subject_id)]
-
-        # Get unique sessions
-        unique_uid_sessions = df_stimset['uid_session'].unique()
-        # just get the last part (after the UID) and assert that it matches the session_ids
-        unique_sessions = ['_'.join(x.split('_')[1:]) for x in unique_uid_sessions]
-        assert session_ids == unique_sessions
-
-        lst_df_dicom_across_sess = []
-        for session_id in session_ids:
-            # session_id = 'FED_20220414c_3T1'
-
-            # Get a stimset that only has the current session
-            df_stimset_sess = df_stimset_orig[df_stimset_orig['uid_session'].str.contains(session_id)]
-
-            # Generate a simple savestr:
-            savestr = f'{stimset_name}_{subject_id}_session-{session_id}'
-
-            # Get the uid session
-            uid_session = f'{subject_id}_{session_id}'
-
-            # Load info from data.cfg file
-            data_cfg_path = join(SUBJECTSDIR,
-                                 f'{uid_session}_PL2017')
-            data_cfg = pd.read_csv(join(data_cfg_path,
-                                        'data.cfg'),
-                                   header=None)
-
-            # Reformat data.cfg -- map dicoms to functionals
-            # Get dicoms (all lines below #dicoms)
-            dicoms = data_cfg[data_cfg[0].str.contains('dicoms')]
-            # Omit first one row name
-            dicoms = dicoms[1:].values
-
-            # Get functional numbers (line below #functionals)
-            functionals_idx = data_cfg[data_cfg[0].str.contains('functionals')].index[0]
-            functionals = data_cfg.iloc[functionals_idx + 1].values
-            # Remove trailing whitespace
-            functionals = [f.strip() for f in functionals]
-            # convert numpy string array to list of ints
-            functionals = functionals[0].split(' ')
-            functionals = [int(i) for i in functionals]
-
-            # Read dicom summary
-            dicom_summary_path = join(SUBJECTSDIR,
-                                      f'{uid_session}_PL2017',
-                                      'dicom_summary.csv')
-            dicom_summary = pd.read_csv(dicom_summary_path, index_col=False)
-
-            # Get RUN_NUM for all rows that have IPS=expected_IPS
-            expected_IPS = int(expected_duration / tr)
-
-            run_nums = dicom_summary.query(f'IPS == {expected_IPS}')['RUN_NUM'].values
-            assert len(run_nums) == n_runs
-            assert all([i in functionals for i in run_nums])  # assert that all runs nums exist in functionals
-
-            # Get the idx of the runs from functionals, but note that it is 1-indexed
-            run_nums_idx = [functionals.index(i) + 1 for i in run_nums]
-
-            # In dicoms, obtain the dicom string if it is in the run_nums
-            dicoms_in_run_nums = []  # for IPS of interest
-            dicom_nums = []
-            dicom_ids = []
-            for dicom in dicoms:
-                dicom_num = dicom[0].split('-')[-2]
-                dicom_id = '-'.join(dicom[0].split('.')[-2].split('/')[-1].split('-')[
-                                    :-1])  # Get identifier consisting of the random number and then the dicom image number
-
-                if int(dicom_num) in run_nums:
-                    dicoms_in_run_nums.append(dicom[0])
-                    dicom_nums.append(dicom_num)
-                    dicom_ids.append(dicom_id)
-
-            df_dicom = pd.DataFrame({'dicomnumber': dicom_nums,
-                                     'dicomid': dicom_ids,
-                                     'dicom_path': dicoms_in_run_nums})
-
-            # Get the dicomids from stimset
-            stimset_dicomids = df_stimset_sess.loc[df_stimset_sess['uid_session'] == uid_session, 'dicomid'].unique()
-
-            # Get the run numbers from the control runs (1-10)
-            crit_expt_run_id = np.unique(df_stimset_sess['run_id'].values)
-            assert all(np.diff(crit_expt_run_id) == 1)  # make sure they are sorted and ascending
-
-            df_dicom['run_id'] = crit_expt_run_id
-            df_dicom['run_nums_idx_functionals'] = run_nums_idx  # Which number it has in the preprocessed nii files
-            df_dicom['uid_session'] = uid_session
-
-            lst_df_dicom_across_sess.append(df_dicom)
-
-        df_dicom_across_sess = pd.concat(lst_df_dicom_across_sess)
-
-        # Add to stimset and match to the run_id
-        df_stimset = df_stimset.merge(df_dicom_across_sess, on='run_id', how='left')
-
-        # Assert whether _x and _y columns are the same and only keep one
-        xy_cols = [col for col in df_stimset.columns if col.endswith('_x')]
-        for col in xy_cols:
-            if col == 'dicomnumber_x':
-                # make both int
-                assert df_stimset[col].astype(int).equals(df_stimset[col[:-2] + '_y'].astype(int))
-            else:
-                assert df_stimset[col].equals(df_stimset[col[:-2] + '_y'])
-            df_stimset = df_stimset.drop(columns=[col])
-            # Rename the y column to the original name
-            df_stimset = df_stimset.rename(columns={col[:-2] + '_y': col[:-2]})
-
-        # Create the path to the preprocessed nii files
-
-        # E.g., rfunc_run-03_bold.nii
-        df_stimset['nii_r_path'] = [join(SUBJECTSDIR,
-                                        f'{df_stimset.loc[idx, "uid_session"]}',
-                                        'DefaultMNI_PlusStructural',
-                                        'func',
-                                        f'rfunc_run-{str(run_idx).zfill(2)}_bold.nii') for idx, run_idx in
-                                    enumerate(df_stimset['run_nums_idx_functionals'])]
-
-
-        # E.g., wrfunc_run-03_bold.nii
-        df_stimset['nii_wr_path'] = [join(SUBJECTSDIR,
-                                            f'{df_stimset.loc[idx, "uid_session"]}',
-                                            'DefaultMNI_PlusStructural',
-                                            'func',
-                                            f'wrfunc_run-{str(run_idx).zfill(2)}_bold.nii') for idx, run_idx in
-                                         enumerate(df_stimset['run_nums_idx_functionals'])]
-
-        # E.g., swrfunc_run-03_bold.nii
-        df_stimset['nii_swr_path'] = [join(SUBJECTSDIR,
-                                            f'{df_stimset.loc[idx, "uid_session"]}',
-                                            'DefaultMNI_PlusStructural',
-                                            'func',
-                                            f'swrfunc_run-{str(run_idx).zfill(2)}_bold.nii') for idx, run_idx in
-                                         enumerate(df_stimset['run_nums_idx_functionals'])]
-
-        # Assert that these files actually exist
-        # assert all([os.path.exists(i) for i in df_stimset['nii_r_path']])
-        # assert all([os.path.exists(i) for i in df_stimset['nii_wr_path']])
-        # assert all([os.path.exists(i) for i in df_stimset['nii_swr_path']])
-
-        df_stimset['expected_IPS'] = expected_IPS
-
-        # Assert that nothing weird happened with e.g., item_id indexing
-        assert df_stimset_orig.item_id.equals(df_stimset.item_id)
-
-        # Save (take the original name and suffix _wdicom)
-        if save:
-            fname = join(OUTPUT_STIMSET_DIR, stimset_name, f'stimset_{load_str}_wnii.csv')
-
-            if not os.path.exists(fname) or overwrite:
-                df_stimset.to_csv(fname, index=False)
-                print(f'Saved {fname} to {OUTPUT_STIMSET_DIR}')
-            elif os.path.exists(fname) and not overwrite:
-                print(f'File {fname} already exists. Set overwrite=True to overwrite it.')
-            else:
-                print(f'File {fname} already exists. Set save=True to save it.')
-
-        return df_stimset
 
     # Get the dicomid to func run num mappings
     stimset_w_nii = run_id_to_nii(subject_id=args.UID,
