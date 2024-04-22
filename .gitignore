@@ -18,6 +18,7 @@ post_hoc_analyze/**/*.svg
 output_glmsingle/html_plots/**/*.html
 output_glmsingle
 pdfs/* 
+Examples/**
 
 
 # various output
