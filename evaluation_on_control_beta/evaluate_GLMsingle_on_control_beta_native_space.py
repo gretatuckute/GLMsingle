@@ -213,7 +213,7 @@ def run_id_to_nii(subject_id: str,
 
     # Save (take the original name and suffix _wdicom)
     if save:
-        fname = join(OUTPUT_STIMSET_DIR, stimset_name, f'stimset_{stimset_name}_wnii.csv')
+        fname = join(OUTPUT_STIMSET_DIR, f'stimset_{stimset_name}_wnii.csv')
 
         if not os.path.exists(fname) or overwrite:
             df_stimset.to_csv(fname, index=False)
@@ -230,7 +230,8 @@ def run_id_to_nii(subject_id: str,
 def main(raw_args=None):
     # Mapping specific
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--UID', default='865', type=str, help='UID str')
+    parser.add_argument('--UID', default='848', type=str, help='UID str')
+    parser.add_argument('--session', default='FED_20220427a_3T1', type=str, help='Session str. If None, use all sessions')
     parser.add_argument('--FL', default='gs', type=str, help='FL')
     parser.add_argument('--stimdur', default=2, type=int, help='Stimulus duration in seconds')
     parser.add_argument('--tr', default=2, type=int, help='TR sampling rate')
@@ -278,8 +279,26 @@ def main(raw_args=None):
     else:
         output_root = join(args.external_output_root, 'output_glmsingle_native_space')
 
+    # Figure out which session(s) to use
+    SESSION_TO_INCLUDE = [args.session if args.session != 'None' else d_UID_to_session_list[int(args.UID)]]
+    if len(SESSION_TO_INCLUDE) == 1:
+        session_str = SESSION_TO_INCLUDE[0]
+    else:
+        session_str = '-'.join(SESSION_TO_INCLUDE)
+
+    if not SESSION_TO_INCLUDE[0].endswith('PL2017'):
+        SESSIONS = [x + '_PL2017' for x in SESSION_TO_INCLUDE]
+
+    # Get the joint sessionstr for the design matrix and stimset (as those were saved including all the sessions a subject had)
+    session_str_design_stimset = d_UID_to_session_list[int(args.UID)]
+    if len(session_str_design_stimset) == 1:
+        session_str_design_stimset = session_str_design_stimset[0]
+    else:
+        session_str_design_stimset = '-'.join(session_str_design_stimset)
+
+
     outputdir = join(output_root,
-                     f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}')
+                     f'output_glmsingle_preproc-{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{session_str}')
     designdir = join(root, 'design_matrices')  # set design matrix directory
     stimsetdir = join(designdir, 'associated_stimsets')  # set stimset directory
     logdir = join(root, 'logs')
@@ -287,13 +306,14 @@ def main(raw_args=None):
     if user != 'gt' and not args.verbose:
         date = datetime.datetime.now().strftime("%Y%m%d-%T")
         sys.stdout = open(
-            join(logdir, f'eval_control_beta_native_space_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{date}.log'), 'a+')
+            join(logdir, f'eval_control_beta_native_space_{preproc}_pcstop{pcstop}_fracs-{fracs}_UID-{args.UID}_{session_str}_{date}.log'), 'a+')
 
     print('*' * 40)
     print(vars(args))
     print('*' * 40)
 
     print(f'Preprocessing pipeline: {preproc} with {pcstop} PCs and {fracs} fracridge')
+    print(f'\nUID: {args.UID} with session(s): {SESSION_TO_INCLUDE}')
     print(f'\nSave output dir: {outputdir}')
     print(f'\nDesign matrices dir: {designdir}')
     print(f'\nLog dir: {logdir}\n')
@@ -302,17 +322,9 @@ def main(raw_args=None):
         pcstop = -0  # revert back
 
     ### Organize BOLD data, design matrices, metadata
-    SESSION_TO_INCLUDE = d_UID_to_session_list[int(args.UID)]
-    session_str = '-'.join(SESSION_TO_INCLUDE)
-
-    if not SESSION_TO_INCLUDE[0].endswith('PL2017'):
-        SESSIONS = [x + '_PL2017' for x in SESSION_TO_INCLUDE]
-    if args.test:
-        print(f'Running in test mode. Only using one session: {SESSION_TO_INCLUDE[:1]}')
-        SESSIONS = SESSION_TO_INCLUDE[:1]
 
     # Design matrix
-    load_str = f'UID-{args.UID}_SESSION-{session_str}'
+    load_str = f'UID-{args.UID}_SESSION-{session_str_design_stimset}'
     design = pd.read_pickle(join(designdir, f'design_matrices_{load_str}.pkl'))
 
     # Associated stimset
@@ -332,15 +344,29 @@ def main(raw_args=None):
                           tr=2,
                           n_runs=10,
                           preproc_config='native_space',
-                          save=False, overwrite=False)
+                          save=True, overwrite=False)
 
+    # Finally, if we only had one session of interest, we need to filter the stimset_w_nii (and correspondingly: the nii files to run GLMsingle on)
+    stimset_w_nii_of_int = stimset_w_nii[stimset_w_nii['session'].str.contains(session_str)]
+    print(f'Number of unique stimuli in the stimset: {len(stimset_w_nii_of_int)} across {len(stimset_w_nii_of_int["uid_session"].unique())} sessions ({len(stimset_w_nii["run_id"].unique())} unique runs)')
+    print(f'After filtering for session {session_str}, we have {len(stimset_w_nii_of_int)} unique stimuli across {len(stimset_w_nii_of_int["uid_session"].unique())} sessions ({len(stimset_w_nii_of_int["run_id"].unique())} unique runs)')
+    # If SESSIONS is len 1, assert that sessionindicator has just one unique value
+    if len(SESSIONS) == 1:
+        assert len(stimset_w_nii_of_int['sessionindicator'].unique()) == 1
+
+    # Finally, if we just had one session, we need to contrain the design matrix to only include the runs from that session
+    # Find unique runs in the stimset_w_nii_of_int
+    unique_runs = stimset_w_nii_of_int['run_id'].unique() # 1-indexed
+    # Take out the runs that correspond to the unique runs
+    design = [design[i - 1] for i in unique_runs]
+    assert len(design) == len(unique_runs)
 
     data = []
     session_indicators = []
 
     # Load each unique dicom image and retain the order
-    _, idx = np.unique(stimset_w_nii[f'nii_{args.preproc}_path'].values, return_index=True)
-    images_of_interest = stimset_w_nii[f'nii_{args.preproc}_path'].values[np.sort(idx)]
+    _, idx = np.unique(stimset_w_nii_of_int[f'nii_{args.preproc}_path'].values, return_index=True)
+    images_of_interest = stimset_w_nii_of_int[f'nii_{args.preproc}_path'].values[np.sort(idx)]
 
     for i, s in enumerate(images_of_interest):
         print(f'Loading data from session UID: {args.UID}, dicom image: {s}\n')
@@ -352,7 +378,7 @@ def main(raw_args=None):
         file = np.array(nib.load(s).dataobj)
         assert (file.shape[3] == design[i].shape[0])
         data.append(file)
-        session_indicator = stimset_w_nii.loc[stimset_w_nii[f'nii_{args.preproc}_path'] == s, 'sessionindicator'].values[0]
+        session_indicator = stimset_w_nii_of_int.loc[stimset_w_nii_of_int[f'nii_{args.preproc}_path'] == s, 'sessionindicator'].values[0]
         session_indicators.append(session_indicator)
 
     # get shape of data volume (XYZ) for convenience
